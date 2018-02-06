@@ -5,44 +5,35 @@ import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.pm.PackageManager;
 import android.graphics.ImageFormat;
-import android.graphics.PixelFormat;
 import android.hardware.Camera;
-import android.media.MediaRecorder;
+import android.hardware.Camera.PreviewCallback;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.Environment;
 import android.os.StrictMode;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
-import android.support.v7.app.AppCompatActivity;
-import android.os.Bundle;
 import android.util.Log;
 import android.view.SurfaceHolder;
+import android.view.SurfaceHolder.Callback;
 import android.view.SurfaceView;
-import android.view.Window;
-import android.view.WindowManager;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.concurrent.ArrayBlockingQueue;
 
 import static android.content.ContentValues.TAG;
+
 
 /**
  * 本地编码
  */
-public class EncodeActivity extends Activity  implements SurfaceHolder.Callback,Camera.PreviewCallback {
 
-    private SurfaceView mSurfaceView;
 
+@SuppressWarnings("deprecation")
+public class EncodeActivity extends Activity implements SurfaceHolder.Callback, PreviewCallback {
 
     AvcEncoder avcCodec;
-    private static int yuvqueuesize = 10;
-
-    public static ArrayBlockingQueue<byte[]> YUVQueue = new ArrayBlockingQueue<byte[]>(yuvqueuesize);
-
-    private String TAG=EncodeActivity.class.getSimpleName();
-
     public Camera m_camera;
     SurfaceView m_prevewview;
     SurfaceHolder m_surfaceHolder;
@@ -62,9 +53,9 @@ public class EncodeActivity extends Activity  implements SurfaceHolder.Callback,
     private String mImagePath;
     private final static int WRITE_EXTERNAL_STORAGE_PERMISSION_REQUEST_CODE = 1;
 
+    @SuppressLint("NewApi")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
         mImagePath = Environment.getExternalStorageDirectory().getPath() + "/avcCodec/";
         StrictMode.setThreadPolicy(new StrictMode.ThreadPolicy.Builder()
                 .detectDiskReads()
@@ -82,23 +73,25 @@ public class EncodeActivity extends Activity  implements SurfaceHolder.Callback,
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_encode);
 
-        Log.d("ws", "width=" + width + ", height=" + height + ", framerate=" + framerate + ", bitrate=" + bitrate);
-        //初始化编码器，在有的机器上失败 fuck!
-        try {
-            avcCodec = new AvcEncoder(width, height, framerate, bitrate);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             checkPermission();
         }
 
-        m_prevewview = (SurfaceView) findViewById(R.id.surfaceview_encode);
+        Log.d("LSH", "width=" + width + ", height=" + height + ", framerate=" + framerate + ", bitrate=" + bitrate);
+        try {
+            //初始化编码器，在有的机器上失败 fuck!
+            avcCodec = new AvcEncoder(width, height, framerate, bitrate);
+        } catch (IOException e1) {
+            Log.d("LSH", "Fail to AvcEncoder");
+        }
+
+
+
+        m_prevewview = (SurfaceView) findViewById(R.id.surfaceViewPlay);
         m_surfaceHolder = m_prevewview.getHolder();
         m_surfaceHolder.setFixedSize(width, height);
         m_surfaceHolder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
-        m_surfaceHolder.addCallback((SurfaceHolder.Callback) this);
+        m_surfaceHolder.addCallback((Callback) this);
 
 
     }
@@ -128,18 +121,25 @@ public class EncodeActivity extends Activity  implements SurfaceHolder.Callback,
     @Override
     public void surfaceCreated(SurfaceHolder arg0) {
         try {
-            m_camera = Camera.open();
-            m_camera.setPreviewDisplay(m_surfaceHolder);
-            Camera.Parameters parameters = m_camera.getParameters();
-            parameters.setPreviewSize(width, height);
-            parameters.setPictureSize(width, height);
-            parameters.setPreviewFormat(ImageFormat.YV12);
-            parameters.set("rotation", 90);
-            //parameters.set("orientation", "portrait");
-            m_camera.setParameters(parameters);
-            m_camera.setDisplayOrientation(90);
-            m_camera.setPreviewCallback((Camera.PreviewCallback) this);
-            m_camera.startPreview();
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this,
+                        new String[]{Manifest.permission.CAMERA},
+                        1);
+            }else {
+                m_camera = Camera.open();
+                m_camera.setPreviewDisplay(m_surfaceHolder);
+                Camera.Parameters parameters = m_camera.getParameters();
+                parameters.setPreviewSize(width, height);
+                parameters.setPictureSize(width, height);
+                parameters.setPreviewFormat(ImageFormat.YV12);
+                parameters.set("rotation", 90);
+                //parameters.set("orientation", "portrait");
+                m_camera.setParameters(parameters);
+                m_camera.setDisplayOrientation(90);
+                m_camera.setPreviewCallback((PreviewCallback) this);
+                m_camera.startPreview();
+            }
+
 
         } catch (IOException e) {
             e.printStackTrace();
@@ -175,7 +175,7 @@ public class EncodeActivity extends Activity  implements SurfaceHolder.Callback,
             file.flush();
             file.close();
         } catch (IOException e) {
-            Log.d("Fuck", "File close error");
+            Log.d("LSH", "File close error");
             e.printStackTrace();
         }
     }
@@ -196,7 +196,7 @@ public class EncodeActivity extends Activity  implements SurfaceHolder.Callback,
                 file.write(h264, 0, ret);
 
             } catch (IOException e) {
-                Log.d("ws", "exception: " + e.toString());
+                Log.d("LSH", "exception: " + e.toString());
             }
         }
 

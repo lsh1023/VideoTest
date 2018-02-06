@@ -4,12 +4,8 @@ import android.annotation.SuppressLint;
 import android.media.MediaCodec;
 import android.media.MediaCodecInfo;
 import android.media.MediaFormat;
-import android.os.Environment;
 import android.util.Log;
 
-import java.io.BufferedOutputStream;
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
@@ -104,10 +100,10 @@ public class AvcEncoder {
 
             if (output[4] == 0x65) //key frame
             {
-                Log.d("Fuck", "key frame");
+                Log.d("LSH", "key frame");
                 System.arraycopy(output, 0, yuv420, 0, pos);
                 System.arraycopy(m_info, 0, output, 0, m_info.length);
-                Log.d("Fuck", "m_info.length: " + m_info.length);
+                Log.d("LSH", "m_info.length: " + m_info.length);
                 System.arraycopy(yuv420, 0, output, m_info.length, pos);
                 pos += m_info.length;
             } else {
